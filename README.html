@@ -602,9 +602,9 @@ body {
 
 <h1 id="readme">README</h1>
 <h1 id="modelling-frontier-mortality-using-bayesian-generalised-additive-models">Modelling Frontier Mortality using Bayesian Generalised Additive Models</h1>
-<p>This repository contains the code need to reproduce the results in the paper “Modelling Frontier Mortality using Bayesian Generalised Additive Models”. The paper is available from this repo at: <a href="https://github.com/jasonhilton/frontier_mort/raw/master/paper/mort_pacer.pdf">https://github.com/jasonhilton/frontier_mort/raw/master/paper/mort_pacer.pdf</a>. The appendix is similarly at: <a href="https://github.com/jasonhilton/frontier_mort/raw/master/paper/appendix.pdf">https://github.com/jasonhilton/frontier_mort/raw/master/paper/appendix.pdf</a></p>
+<p>This repository contains the code need to reproduce the results in the paper “Modelling Frontier Mortality using Bayesian Generalised Additive Models”.</p>
 <h1 id="requirements">Requirements</h1>
-<p>Running the code requires a recent version of <code>R</code> (&gt;3.5 is probably best) and of <code>rstan</code>, the <code>R</code> interface to stan (see here)[<a href="https://github.com/stan-dev/rstan/wiki/RStan-Getting-Started">https://github.com/stan-dev/rstan/wiki/RStan-Getting-Started</a>].</p>
+<p>Running the code requires a recent version of <code>R</code> (&gt;3.5 is probably best) and of <code>rstan</code>, the <code>R</code> interface to stan (<a href="https://github.com/stan-dev/rstan/wiki/RStan-Getting-Started">see here</a>).</p>
 <p>Although it is not strictly necessary, a High Performance Computing platform was used to minimise runtime. The portable batch system (PBS) scripts needed to conduct the runs on this platform are included, and it should be possible to run these on similar systems with minimal adaptation.</p>
 <p>Processing the results is memory intensive. The systems used have a minimum of 16gb of RAM. The scripts may run on systems with less RAM, but this is untested. It is possible the process may hang as the available ram is exhausted and swap space begins to be used. If you wish to replicate the result but do not have access to a system with enough RAM, let me know - I may be able to optimise the code to be less memory intensive.</p>
 <p>To produce the final manuscript, Rmarkdown, knitr, latex and pandoc are used.</p>
@@ -689,6 +689,7 @@ body {
 ##  assertthat    0.2.1     2019-03-21 [1] CRAN (R 3.6.0)
 ##  backports     1.1.4     2019-04-10 [1] CRAN (R 3.6.0)
 ##  bitops        1.0-6     2013-08-17 [1] CRAN (R 3.6.0)
+##  bookdown      0.13      2019-08-21 [1] CRAN (R 3.6.1)
 ##  callr         3.3.1     2019-07-18 [1] CRAN (R 3.6.1)
 ##  cli           1.1.0     2019-03-19 [1] CRAN (R 3.6.0)
 ##  colorspace    1.4-1     2019-03-18 [1] CRAN (R 3.6.0)
@@ -762,7 +763,7 @@ body {
 ## [4] /usr/lib/R/library
 </code></pre>
 <hr />
-<h3 id="iridis">Iridis</h3>
+<h3 id="cluster-session-details">Cluster Session Details</h3>
 <div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb11-1" data-line-number="1"><span class="kw">print</span>(<span class="kw">readRDS</span>(<span class="kw">file.path</span>(<span class="st">&quot;results&quot;</span>, <span class="st">&quot;hpc_sesh.Rds&quot;</span>)))</a></code></pre></div>
 <pre><code>## R version 3.5.1 (2018-07-02)
 ## Platform: x86_64-pc-linux-gnu (64-bit)

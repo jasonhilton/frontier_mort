@@ -1,10 +1,5 @@
 ---
 title: "Appendix: Modelling frontier mortality using Bayesian Generalised Additive Models"
-author: 
- - Jason Hilton$^1$, Erengul Dodd$^1$, Jonathan J. Forster$^2$, Peter W.F Smith$^1$
- - \footnotesize $^1$ Centre for Population Change,  University of Southampton
- - $^2$ Department of Statistics, University of Warwick
- - "Correspondence: J.D.Hilton@soton.ac.uk"
 output: 
   bookdown::pdf_document2:
     toc: false

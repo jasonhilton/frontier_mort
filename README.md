@@ -5,16 +5,13 @@ README
 
 This repository contains the code need to reproduce the results in the
 paper “Modelling Frontier Mortality using Bayesian Generalised Additive
-Models”. The paper is available from this repo at:
-<https://github.com/jasonhilton/frontier_mort/raw/master/paper/mort_pacer.pdf>.
-The appendix is similarly at:
-<https://github.com/jasonhilton/frontier_mort/raw/master/paper/appendix.pdf>
+Models”.
 
 # Requirements
 
 Running the code requires a recent version of `R` (\>3.5 is probably
-best) and of `rstan`, the `R` interface to stan (see
-here)\[<https://github.com/stan-dev/rstan/wiki/RStan-Getting-Started>\].
+best) and of `rstan`, the `R` interface to stan ([see
+here](https://github.com/stan-dev/rstan/wiki/RStan-Getting-Started)).
 
 Although it is not strictly necessary, a High Performance Computing
 platform was used to minimise runtime. The portable batch system (PBS)
@@ -205,6 +202,7 @@ devtools::session_info()
     ##  assertthat    0.2.1     2019-03-21 [1] CRAN (R 3.6.0)
     ##  backports     1.1.4     2019-04-10 [1] CRAN (R 3.6.0)
     ##  bitops        1.0-6     2013-08-17 [1] CRAN (R 3.6.0)
+    ##  bookdown      0.13      2019-08-21 [1] CRAN (R 3.6.1)
     ##  callr         3.3.1     2019-07-18 [1] CRAN (R 3.6.1)
     ##  cli           1.1.0     2019-03-19 [1] CRAN (R 3.6.0)
     ##  colorspace    1.4-1     2019-03-18 [1] CRAN (R 3.6.0)
@@ -279,7 +277,7 @@ devtools::session_info()
 
 -----
 
-### Iridis
+### Cluster Session Details
 
 ``` r
 print(readRDS(file.path("results", "hpc_sesh.Rds")))
