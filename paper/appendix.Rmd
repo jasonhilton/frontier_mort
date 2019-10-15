@@ -1,0 +1,190 @@
+---
+title: "Appendix: Modelling frontier mortality using Bayesian Generalised Additive Models"
+author: 
+ - Jason Hilton$^1$, Erengul Dodd$^1$, Jonathan J. Forster$^2$, Peter W.F Smith$^1$
+ - \footnotesize $^1$ Centre for Population Change,  University of Southampton
+ - $^2$ Department of Statistics, University of Warwick
+ - "Correspondence: J.D.Hilton@soton.ac.uk"
+output: 
+  bookdown::pdf_document2:
+    toc: false
+    fig_caption: yes
+    keep_tex: yes
+header-includes:
+  - \usepackage{caption}
+  - \captionsetup[table]{skip=6pt}
+  - \usepackage{setspace}
+  - \doublespacing
+fontsize: 12pt
+bibliography: mort_pacer.bib
+params:
+  prefix: ".."
+  linear_ts: "20191013_210236"
+  quad_ts: "20191014_121020"
+  ind_ts: "20191014_092729"
+number-sections: true
+citation_package: none
+pandoc_args: [ "--csl", "apa-no-doi-no-issue.csl" ]
+link-citations: true
+---
+
+```{r setup, include=FALSE}
+library(rmarkdown)
+library(knitr)
+knitr::opts_chunk$set(echo = FALSE, message=F, warning=F)
+knitr::opts_chunk$set(dev = "pdf",fig.height=4, fig.width=7)
+
+library(ggplot2)
+library(dplyr)
+library(magrittr)
+library(tidyr)
+library(rstan)
+library(scales)
+library(tibble)
+library(ggfan)
+library(purrr)
+library(ggfan)
+library(here)
+prefix <- 
+
+# sometimes we might want results elsewhere (eg X:)
+data_prefix <- file.path(prefix, "results")
+
+theme_set(theme_bw(base_size = 14))
+
+source(file.path(here(), "R", "reconstruct.R"))
+source(file.path(here(), "R", "data_functions.R"))
+source(file.path(here(), "R", "utilities.R"))
+emp_rate_df <- readRDS(file.path(here(), "data", "rate.rds"))
+emp_rate_df %<>% mutate(`Log rate`=Log_rate)
+countries <- emp_rate_df %>% select(Country) %>% unique() %>%
+   unlist()
+ages <- c(1,25, 40, 60, 80, 95) 
+```
+
+# Country Forecast Plots - Independent Model
+```{r}
+
+model_dir <- file.path(data_prefix, params$ind_ts)
+model_name <- list.files(model_dir, pattern="mort_pacer")
+result <- readRDS(file.path(model_dir,
+                            model_name))
+stan_data <- result$stan_data
+mort_fit <- result$mort_fit
+
+
+
+countries <- stan_data$country_decode %>% 
+  arrange(country_f) %>% select(Country) %>% unlist()
+
+
+for (country in countries){
+  log_rate_df <- get_nb_log_rate_df(stan_data, mort_fit,
+                                           emp_rate_df, 
+                                           country, quantilise = T) %>%
+           mutate(Country=country)
+  p2 <- ggplot(log_rate_df %>% filter(Age %in% ages),
+         aes(x=Year,y=Log_rate)) + 
+    geom_vline(xintercept=stan_data$config$joy) + 
+    geom_interval(aes(quantile=Quantile)) +
+    facet_wrap(~Age, scales="free") + 
+    geom_point(data=emp_rate_df %>% filter(Age %in% ages,
+                                           Year>= stan_data$config$start_year,
+                                           Country==country),
+               col="red", size=0.5) + 
+    ggtitle(paste0("Log Rate Posterior for selected ages vs Empirical : ", country))
+  print(p2)
+}
+rm(log_rate_df)
+trash <- gc()
+
+```
+
+
+# Country Forecast Plots - Linear Model
+```{r}
+
+model_dir <- file.path(data_prefix, params$linear_ts)
+model_name <- list.files(model_dir, pattern="mort_pacer")
+result <- readRDS(file.path(model_dir,
+                            model_name))
+stan_data <- result$stan_data
+mort_fit <- result$mort_fit
+frontier_df <- get_frontier_mortality(stan_data, mort_fit)%>% 
+  rename(`Log rate`=Log_rate)
+countries <- stan_data$country_decode %>% 
+  arrange(country_f) %>% select(Country) %>% unlist()
+
+
+for (country in countries){
+  
+  nb_rate_df <- get_nb_log_rate_df(stan_data, mort_fit,
+                                    emp_rate_df, 
+                                    country, quantilise = T)
+  plot_rate_df <- rbind(nb_rate_df %>%
+                        mutate(Type="Posterior Rate") %>%
+                        rename(`Log rate`=Log_rate),
+                      frontier_df %>%
+                        mutate(Type="Frontier"))
+  p2 <- ggplot(plot_rate_df %>% filter(Age %in% ages),
+       aes(x=Year,y=`Log rate`, colour=Type)) + 
+    geom_vline(xintercept=stan_data$config$joy) + 
+    geom_interval(aes(quantile=Quantile, group=Type),
+                  interval=c(0,0.9)) +
+    facet_wrap(~Age, scales="free") + 
+    geom_point(data=emp_rate_df %>% 
+                 filter(Age %in% ages,
+                        Year>= stan_data$config$start_year,
+                        Country==country),
+               col="red", size=0.5) + 
+    ggtitle(paste0("Log Rate Posterior for selected ages",
+                   " vs Empirical : ", country))
+  print(p2)
+}
+
+trash <- gc()
+```
+
+# Country Forecast Plots - Quadratic Model
+
+
+
+```{r}
+model_dir <- file.path(data_prefix, params$quad_ts)
+model_name <- list.files(model_dir, pattern="mort_pacer")
+result <- readRDS(file.path(model_dir,
+                            model_name))
+stan_data <- result$stan_data
+mort_fit <- result$mort_fit
+frontier_df <- get_frontier_mortality(stan_data, mort_fit) %>% 
+  rename(`Log rate`=Log_rate)
+countries <- stan_data$country_decode %>% 
+  arrange(country_f) %>% select(Country) %>% unlist()
+
+
+for (country in countries){
+  nb_rate_df <- get_nb_log_rate_df(stan_data, mort_fit,
+                                    emp_rate_df, 
+                                    country, quantilise = T)
+  plot_rate_df <- rbind(nb_rate_df %>%
+                        mutate(Type="Posterior Rate") %>%
+                        rename(`Log rate`=Log_rate),
+                      frontier_df %>%
+                        mutate(Type="Frontier"))
+  p2 <- ggplot(plot_rate_df %>% filter(Age %in% ages),
+       aes(x=Year,y=`Log rate`, colour=Type)) + 
+    geom_vline(xintercept=stan_data$config$joy) + 
+    geom_interval(aes(quantile=Quantile, group=Type),
+                  interval=c(0,0.9)) +
+    facet_wrap(~Age, scales="free") + 
+    geom_point(data=emp_rate_df %>% 
+                 filter(Age %in% ages,
+                        Year>= stan_data$config$start_year,
+                        Country==country),
+               col="red", size=0.5) + 
+    ggtitle(paste0("Log Rate Posterior for selected ages",
+                   " vs Empirical : ", country))
+  print(p2)
+}
+
+```

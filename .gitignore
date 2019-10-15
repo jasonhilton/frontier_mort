@@ -1,0 +1,9 @@
+*.Rproj*
+*.Rhistory
+*.rds
+*.Rds
+*.tex
+*_files*
+*.log
+notebooks/*
+*scratch*

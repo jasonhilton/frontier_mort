@@ -1,0 +1,149 @@
+---
+title: "README"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Modelling Frontier Mortality using Bayesian Generalised Additive Models
+
+This repository contains the code need to reproduce the results in the paper "Modelling Frontier Mortality using Bayesian Generalised Additive Models". 
+The paper is available from this repo at:
+[https://github.com/jasonhilton/frontier_mort/raw/master/paper/mort_pacer.pdf](https://github.com/jasonhilton/frontier_mort/raw/master/paper/mort_pacer.pdf).
+The appendix is similarly at:
+[https://github.com/jasonhilton/frontier_mort/raw/master/paper/appendix.pdf](https://github.com/jasonhilton/frontier_mort/raw/master/paper/appendix.pdf)
+
+
+# Requirements
+
+Running the code requires a recent version of `R` (>3.5 is probably best) and of `rstan`, the `R` interface to stan  (see here)[https://github.com/stan-dev/rstan/wiki/RStan-Getting-Started].
+
+
+Although it is not strictly necessary, a High Performance Computing platform was used to minimise runtime. The portable batch system (PBS) scripts needed to conduct the runs on this platform are included, and it should be possible to run these on similar systems with minimal adaptation.
+
+Processing the results is memory intensive. The systems used have a minimum of 16gb of RAM. The scripts may run on systems with less RAM, but this is untested. It is possible the process may hang as the available ram is exhausted and swap space begins to be used. If you wish to replicate the result but do not have access to a system with enough RAM, let me know - I may be able to optimise the code to be less memory intensive.
+
+To produce the final manuscript, Rmarkdown, knitr, latex and pandoc are used.
+
+## Storage
+The complete set of MCMC results take up less than 1GB.
+
+---
+
+# Reproducing the results.
+
+The results presented in the paper can be reproduced by following the steps below. All code chucks in this document should be run from the terminal from the base directory of this repository (that is, the one that contains this file).
+
+## Installing R packages
+- The first step is to install a number of R packages. The command below does so programmatically, and can be run from the command line.
+```{bash, eval=F}
+Rscript install_packages.R
+```
+
+
+## Getting the data
+UK mortality data from the human mortality database is required. This data can also be obtained using an script. Running this script will create a `data` subfolder within this repository and download files from the [Human Mortality Database](http://www.mortality.org/) (HMD) to it. However, an account and password is needed to access this data. 
+For this script to work, you need to set environment variables containing your username and password. You can do this by adding the following lines to your `.Renviron.site` file (create one if you do not already have one), which will be in the directory specified by running the command `R.home()` in the R console, in the `etc` sub-folder.
+
+```{bash, eval=F}
+HFD_user=user
+HFD_pass=pass
+```
+The 'user' and 'pass' text after the equals signs should be replaced with your account username and password. Then, run the command below from the command line to download the data.
+
+```{bash, eval=F}
+Rscript download_mortality_data.R
+```
+
+This script uses the third-party `HMDHFDplus` package to obtain the data. Please ensure you use a unique password for HMD and don't reuse one from something else, and take appropriate precautions with your credential information. I am not a security expert, and I cannot guarantee the security of these credentials. 
+
+## Running the model
+
+The script `scripts/run_model.R` produces samples for a single model. 
+Exactly what data and which model is used is determined by the configuration file you specify. These are located in the `config` folder, while the models themselves are located in the `stan` folder.  To run the models required the results presented in the paper, the following commands are needed. 
+
+```{bash, eval=F}
+Rscript run_model.R linear
+Rscript run_model.R quadratic
+Rscript run_model.R independent
+```
+You should allow two days for each model to reach the required 8000 samples per chain. Outputs are saved to the `results` directory, in subfolders named according to the date and time the models were run.
+
+## Running with Portable Batch System
+
+If you wish to run the model on a cluster (assuming you have one available), the following commands will submit jobs using PBS.
+```{bash, eval=F}
+
+qsub PBS/run_stan.pbs -v config=linear
+qsub PBS/run_stan.pbs -v config=quadratic
+qsub PBS/run_stan.pbs -v config=independent
+
+```
+This is convenient, because you can run all three models at the same time (if you have enough nodes available), and you avoid tying up your own machine for the duration!
+
+
+## Assessment 
+To assess the forecast root-mean-squared error and coverage of each mode, another script must be run. The argument to this script should be the name of the folder where the results for the model to be assessed are saved. This folder will have been created by the script run in the previous step, and will have a `date_time` type format:
+
+```{bash, eval=F}
+
+Rscript scripts/run_assess.R YYYYMMDD_HHMMSS
+
+```
+
+Again, this can be run on a cluster if necessary:
+
+```{bash, eval=F}
+
+qsub PBS/run_assess.pbs -v run_stamp=YYYYMMDD_HHMMSS
+
+```
+
+This script will save the assessment outputs in the same folder as the original stan model output.
+
+
+## Compile the paper
+To produce the `tex` files needed to produce the manuscript, the below commands run knitr and pandoc to process the R markdown files `mort_pacer.Rmd` and `appendix.Rmd`.
+However, you need to specify the folders where the relevant results are located by editing the two `process_` scripts to include the relevant timestamps corresponding to the linear, quadratic and independent models. These are included as `params` to the `rmarkdown::render` call.
+
+```{bash, eval=F}
+
+Rscript scripts/process_rmd.R
+Rscript scripts/process_appendix.R
+```
+
+
+
+## R session information
+
+### Local Machine
+```{r}
+library(tibble)
+library(magrittr)
+library(tidyr)
+library(purrr)
+library(lazyeval)
+library(tidyselect)
+library(rstan)
+library(yaml)
+library(here)
+library(git2r)
+library(HMDHFDplus)
+library(curl)
+library(ggplot2)
+library(ggfan)
+library(dplyr)
+library(devtools)
+devtools::session_info()
+```
+
+
+----
+
+### Iridis
+
+```{r}
+print(readRDS(file.path("results", "hpc_sesh.Rds")))
+```

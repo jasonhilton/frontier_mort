@@ -1,0 +1,12 @@
+model: "mort_pacer_linear"
+knot_gap_frontier: 5
+knot_gap_countries: 10
+pen_order: 1
+n_forecast_years: 10
+start_year: 1961
+joy: 2006
+iter: 1000
+thin: 1
+chains: 2
+cores: 2
+quad_constraint: TRUE

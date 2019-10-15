@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# Set requirements for the job.
+# - these can be overridden on the qsub command line
+
+#PBS -l walltime=02:00:00
+#PBS -l nodes=1:ppn=4
+
+cd $PBS_O_WORKDIR
+PATH=$PBS_O_PATH
+
+# Load the R module so that the R command can be found.
+module load R/3.5.1
+# stan only works with later versions of gcc
+module load gcc/4.9.1
+
+Rscript scripts/assess_runs.R $run_stamp

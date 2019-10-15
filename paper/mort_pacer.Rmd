@@ -1,0 +1,418 @@
+---
+title: "Modelling frontier mortality using Bayesian generalised additive models"
+author: 
+ - Jason Hilton$^1$, Erengul Dodd$^1$, Jonathan J. Forster$^2$, Peter W.F Smith$^1$
+ - \footnotesize $^1$ Centre for Population Change,  University of Southampton
+ - $^2$ Department of Statistics, University of Warwick
+ - "Correspondence: J.D.Hilton@soton.ac.uk"
+output: 
+  bookdown::pdf_document2:
+    toc: false
+    fig_caption: yes
+    keep_tex: yes
+header-includes:
+  - \usepackage{caption}
+  - \captionsetup[table]{skip=6pt}
+  - \usepackage{setspace}
+  - \doublespacing
+fontsize: 12pt
+bibliography: mort_pacer.bib
+number-sections: true
+citation_package: none
+pandoc_args: [ "--csl", "apa-no-doi-no-issue.csl" ]
+link-citations: true
+params:
+  prefix: ".."
+  linear_ts: "20191013_210236"
+  quad_ts: "20191014_121020"
+  ind_ts: "20191014_092729"
+abstract: Mortality rates differ across countries and years, and the country with the lowest mortality has historically tended to change over time. Following the classic Science paper by Oeppen and Vaupel (2002), for any given year a hypothetical mortality 'frontier' can be defined as the lower limit of the force of mortality at each age, taken across all countries. It is expected that change in this frontier reflects global technological and medical advances, which may display a more stable trend over time than the patterns in mortality improvement displayed by any particular country. Employing the model of Hilton et al. (2019), we jointly estimate frontier mortality as well as mortality rates for individual countries. Generalised additive models are used to estimate a smooth set of baseline frontier mortality rates and mortality improvements, and country-level mortality is modelled as a set of smooth, positive deviations from this, forcing the mortality estimates for individual countries to lie above the frontier. The assumed stability of the mortality frontier can also be exploited for forecasting purposes. This model is fitted to data for a selection of countries from the Human Mortality Database. The efficacy of the model in forecasting over a 10-year horizon is compared to a similar model fitted to each country separately. \newpage
+---
+
+```{r setup, include=FALSE}
+library(rmarkdown)
+library(knitr)
+knitr::opts_chunk$set(echo = FALSE, message=F, warning=F)
+knitr::opts_chunk$set(dev = "pdf",fig.height=4, fig.width=7)
+
+library(ggplot2)
+library(dplyr)
+library(magrittr)
+library(tidyr)
+library(rstan)
+library(scales)
+library(tibble)
+library(ggfan)
+library(purrr)
+library(ggfan)
+library(here)
+prefix <- params$prefix
+
+# sometimes we might want results elsewhere (eg X:)
+results_prefix <- file.path(prefix, "results")
+
+theme_set(theme_bw(base_size = 18))
+
+source(file.path(here(), "R", "reconstruct.R"))
+source(file.path(here(), "R", "data_functions.R"))
+source(file.path(here(), "R", "utilities.R"))
+
+
+```
+
+
+# Introduction
+Modelling and forecasting mortality is a vital function for government bodies that produce official statistics. Population projections and life expectancy calculations depend on their production, and in turn these influence policy on public pensions, health spending, and planning. Official projections may gain from utilising data from across a range of countries (see, for example @Raftery2013), as this greater depth of mortality experience may reveal the long-term pattern in mortality more clearly than any single country alone. Best-practice life expectancy, defined as lowest value of life expectancy globally, has shown sustained increases over many decades  [@Oeppen2002], and furthermore national life expectancies in different states appear to be converging [@Wilson2001]. The extent to which we can expect these trends to continue in the long term is subject to debate. However, as highlighted by @Oeppen2002, previous predicted limits to life expectancy have been surpassed not long after they were proposed. While individual countries may show acceleration and deceleration in their rate of decline, the behaviour of the mortality 'frontier' is suggested to be more regular.  In contrast to the social, political and economic influences on mortality decline, the frontier is influenced to a greater extent by the pace of increase in medical knowledge and technological advances, which is assumed to be more consistent.  As noted by @Bijak2004, @Torri2012 and @Pascariu2018, this regularity has utility in forecasting, to the extent that we expect advances in health behaviour and medical technology to keep pace with past experience. Furthermore, estimating the location and evolution of the global mortality frontier may help policy-makers understand where there are opportunities to improve mortality. This paper employs the Bayesian generalised additive mortality model of @Hilton2019 to estimate frontier mortality rates and project them forward at the long run rate of decline, modelling individual country mortality schedules as deviations from this frontier experience.
+
+In order for such an approach to be suitable for mortality forecasting, we hope that frontier mortality does display the expected regularities. The Human Mortality Database provides a collection of mortality data spending a wide range of developed countries, which are collectively ideal for examining the behaviour of the mortality frontier [@hmd]. Mortality data are typically defined in terms of the central mortality rate
+$$
+m_{xt} = \frac{D_{xt}}{R_{xt}},
+$$ where $D_{xt}$ denotes the number of deaths of individuals aged between $x$ and $x+1$ during year $t$, and $R_{xt}$ is the exposure to risk during of the same group over that period, measured in terms of person-years lived. Ages may range from 0 to some maximum age $X$, with the latest year denoted by $T$.  We define the empirical 'frontier' as the best (lowest) mortality rate at each year and age amongst all countries for which data are available:
+
+$$
+m_{xt}^{*} = \text{min}_c(m_{xtc}),
+$$ where $c$ indicates a particular country. Figure \@ref(fig:frontsched) plots the natural logarithm of empirical frontier mortality for females at forty-year intervals from 1816 to the present day. We can see from this plot that log-mortality appears to have declined more quickly over in the last century than over the preceding 100 years, and furthermore, the rate of decline varies for different ages. Additionally, we can see that empirical frontier log-mortality is not smooth; considerable variability is observed for the youngest ages in particular, where death counts are low and random variability plays a greater role. Any proposed frontier model should be able to take into account these features of the data.
+
+```{r frontsched, fig.cap="Empirical frontier mortality for females in selected years. Human Mortality Database."}
+emp_rate_df <- readRDS(file.path(here(), "data", "rate.rds"))
+
+countries <- emp_rate_df %>% select(Country) %>% unique() %>%
+ unlist() 
+front_mort <- emp_rate_df %>% group_by(Year,Age) %>% filter(Age<91) %>%
+  summarise(`Log rate`=min(Log_rate)) %>% ungroup() %>% mutate(year=as.factor(Year))
+
+years <- rev(seq(2016, 1815, -40))
+
+front_mort %>% filter(Year %in% years) %>%
+  ggplot(aes(x=Age,y=`Log rate`, group=Year, colour=year)) + 
+  geom_line(size=3) +
+  scale_colour_viridis_d()
+
+```
+
+
+The pattern of mortality frontier improvement factors is an important consideration for modelling. Restricting ourselves to more recent years, we can observe the pattern of decline in empirical frontier mortality over time for particular ages in Figure \@ref(fig:mortimp). By eye, it would appear that such declines have been relatively linear since 1960.
+
+```{r mortimp, fig.cap="Patterns of Empirical Frontier Log-Mortality Improvement by Age. Human Mortality Database", fig.height=7}
+
+
+ages <- c(1,30,50,70,90)
+front_mort %>% filter(Age %in% ages,
+                      Year >1960, Year <=2016) %>%
+  ggplot(aes(x=Year,y=`Log rate`, colour=Age)) + 
+  geom_point(size=3) +
+  facet_grid(Age~., scales="free")  +
+  geom_smooth(method = lm)
+
+```
+
+Also of interest is the extent to which different countries contribute to the mortality frontier. Figure \@ref(fig:countries) examines the contribution in terms of observations of each country to the empirical mortality frontier. It is clear that although Japan and Norway are the biggest contributors, the frontier is not primarily made up of observations from one country. This suggests that we may be able to make gains in estimating the frontier with a model that uses information from multiple countries. Some of the countries identified as contributing to the frontier may seem surprising. For instance, Scotland contributes many observations to the frontier between ages 0 and 40, while England contributes very few, despite the latter having higher life expectancy over the period considered. This is because Scotland's much smaller population means that random variation is more likely to result in observed mortality rates that are very low, even if on average rates are higher than for many of its peers. This also may explain the prominent contributions of other smaller countries such as Ireland, Finland and New Zealand to frontier mortality at young ages. This observation provides more motivation for a model-based approach to estimating frontier mortality; simply using the best observed rate for each year and age will cloud our understand of the long term structural changes associated with declining frontier mortality. We can therefore make a distinction between the empirical mortality frontier and the hypothetical frontier that will be the target of modelling in the next section.
+
+
+
+
+```{r countries, fig.cap="Counts of country contributions to empirical frontier mortality by age group. Human Mortality Database"}
+emp_rate_df %>% filter(Year>=1961, Year<=2016) %>% 
+  group_by(Year,Age) %>% filter(Age<91) %>%
+    filter(Log_rate==min(Log_rate)) %>% 
+  mutate(`Age group`=paste0((Age %/% 20)*20, " - ", (Age %/% 20 + 1)*20)) %>%
+  ggplot(aes(x=Country, fill=`Age group`)) + geom_histogram(stat="count", colour="black") +
+  coord_flip()
+  
+
+```
+
+The extent to which levels of frontier mortality improvement have persisted over time is also worth examining. Mortality improvement is typically measured using log mortality ratios (or improvement factors), defined as $\text{log}(\frac{m_{x,t}}{m_{x, t-1}})=\text{log}(m_{x,t}) - \text{log}(m_{x,t-1})$. Figure \@ref(fig:impsched) displays the average age-specific log mortality improvement ratios base on linear models fitted to data for each decade since 1960, smoothed using local weighted polynomial regression. While ages below 30 display low counts and are more likely to be subject to noise, ages from 40 onward are concentrated in a band around $-0.02$, particularly in the period since 1970.
+
+
+```{r impsched, fig.cap="Smoothed frontier mortality improvements by decade. Human Mortality Database"}
+
+front_mort %<>% 
+  mutate(Year=as.numeric(as.character(Year)))
+
+
+emp_front_imp <-front_mort %>% 
+  filter(Year %in% 1961:2016) %>% 
+  mutate(Decade = as.factor(1950 + ((Year -1950) %/% 10)*10)) %>% 
+  filter(!is.na(`Log rate`),
+         `Log rate` != -Inf) %>%
+  nest(-Decade,-Age) %>%
+  mutate(model=map(data, 
+                       safely(function(df) coef(lm(`Log rate`~Year,
+                                                   df))))) %>%
+  mutate(model=map(model, safely(function(x) x$result[2]))) %>% 
+  mutate(Improvement=map_dbl(model, "result"))
+
+# emp_front_imp <- front_mort %>% 
+#   filter(Year %in% 1961:2016) %>% 
+#   mutate(Decade = as.factor(1950 + ((Year -1950) %/% 10)*10)) %>%
+#   group_by(Decade,Age) %>% 
+#   summarise(Improvement=(last(`Log rate`) - first(`Log rate`))/n())
+  
+emp_front_imp %>% ggplot(aes(x=Age,y=Improvement, 
+                             group=Decade, colour=Decade)) + 
+  geom_smooth(se=F) 
+
+```
+
+This empirical evidence supports the work of @Bijak2004, @Torri2012, and others that suggest there may be some utility in modelling and forecasting mortality with reference to the frontier. Model-based techniques can help us better extract a representation of the mortality frontier from the empirical noise of detailed and varied cross-country data. The next section examines existing approaches to mortality modelling, with particular focus on models that borrow strength across countries and that involve 'best-practice' mortality.
+
+
+# Models of Mortality
+There are various different approaches to the modelling of mortality, of which @Booth2008 provides an extensive review. Mortality is the demographic component most amenable to forecasting; unlike migration and fertility, both the age pattern of the rates and the direction of change has remained steady over a very long time horizon. A few key approaches to mortality forecasting are highlighted in this section. One strand of the literature is based on the idea of reducing the dimensionality of the problem by identifying leading principle components of the matrix of log-mortality rates and using these for forecasting. The seminal paper in this area is @Lee1992. Their method decomposes the centered log-mortality rates into a time index describing the overall rate of mortality decline and a vector of age-specific factors describing the rate of decline of each age-specific rate relative to this index, so that $\text{log}(m_{xt}) = a_x + b_x k_t$. The vectors $\pmb{b} = (b_0,\; b_1,\; \dots,\; b_X)$ and $\pmb{k_t}=(k_1,\; k_2, \; \dots, \; k_T)$ correspond to the first principal component of the centred log-rate matrix, and can therefore be estimated using singular value decomposition. Since only the index $\kappa_t$ varies over time, the forecasting problem is much simplified. Typically, simple time series models suffice for $\kappa_t$, and in particular the random walk with drift has been found to perform well. A wide range of extensions of the Lee-Carter model have been proposed, a testament to the simplicity and efficacy of the model (e.g. @Lee1994, @booth2006, @Li2013a). @Hyndman2007 provide an extension of the Lee-Carter model from within the functional data analysis framework, allowing for more than one principal component to be employed in forecasting, and for the smoothing of the age-profile of mortality decline.
+
+From a different perspective, @Currie2004 employ 2-dimensional penalised B-splines to capture log-mortality rates, allowing considerable flexibility in the shape of the mortality surface. Forecasting is possible through the interpretation of the smoothing penalisation of basis function coefficients as a time series model, allowing basis function coefficients for new periods to be generated.  Also employing penalised B-splines, @Hilton2019 fit generalised additive models in order to capture smooth age, age-specific improvement, and cohort components together with a period effect capturing deviations from the linear trend (for which roughness is deemed appropriate). Taking a more general view, @Cairns2009 describe a family of models in which log-mortality is considered as a sum of terms of age, period and cohort effects, possibly including interactions. This family includes the Lee-Carter model and the model of @Currie2004 as special cases.
+
+## Coherent models
+Many researchers have attempt to utilise information from multiple countries or populations to produce better forecasts. This often arises within the context of attempting to ensure *coherence* between male and female forecasts, or between mortality forecasts across many countries. Models which forecast separate populations with constant rates of mortality improvement can expect to see predictions diverge in the future, to an extent which is unsupported in the data [@Hyndman2013]. Similarly, given that the gap between male and female life expectancy is narrowing in many countries, separate long term forecasts by sex are likely to show a crossover in mortality rates. This seems similarly implausible given evidence that there may be some biological basis for difference in male and female mortality and ageing [@luy03]. By identifying common trends across populations and allowing individual populations to converge towards such trends, coherence is ensured. While the trends involved do not refer to the mortality frontier discussed above, there are many commonalities between the coherent mortality models and the approach proposed in this paper.
+
+Several authors have attempted to produce models that avoid such incoherent forecasts. @Li2005a fit the Lee-Carter model to all-country mortality, and specify additional mean-reverting bi-variate terms that capture divergences from this central trend. @Kleinow2015 develop this work to include different populations with the same Lee-Carter age term $\beta_x$ but different time indicies. @Bergeron-Boucher2017 also adapt the model of @Li2005a to apply to their compositional data (CODA) mortality modelling framework, where the modelling target is the distribution of life table births rather than the mortality rates themselves. Still working with a principle component framework, @Hyndman2013 extend the model of @Hyndman2007 to target the product and ratio of sub-population mortality rates, modelling these transformations using functional principal component time series techniques, and taking advantage of the fact that these products and ratios are uncorrelated, making uncertainty quantification for forecasts more straightforward. They find that coherent forecasts improve overall accuracy in comparison to independently fitted equivalents. Adapting existing models to provide for coherence is a common approach: @Biatat2010 provide an extension of the model of @Currie2004 that allows mortality for two populations to be modelled; the first using the original model, and the second as the first population plus a gap, comprising of the sum of two one-dimensional splines, one aligned along the age axis and other against time.  @Cairns2011 also consider a two population model, but using a simple Age-Period-Cohort model as a test case. They describe and implement various ways of enforcing coherence in the evolution of period and cohort effects, including cases where one population is dominant. @Enchev2017 discuss and evaluate a range of different multi-population models, including the @Li2005a model, and find that both the common age effect model of @Kleinow2015 and the @Li2005a model produce satisfactory, albeit different, forecasts. 
+
+The hierarchical model of mortality feeding into the United Nations World Population Projections provide an elegant way of ensuring coherence in mortality forecast across the globe, while also allowing forecasts to be made for countries with incomplete data [@Raftery2013]. The time evolution of life expectancy for each country is modelled using a stochastic double logistic function, with the parameters drawn from a global distribution. Such a model also allows for missing data, an important problem when modelling mortality in developing countries. @Bohk2017 similarly adopt a hierarchical Bayesian perspective, but allow age-specific mortality *improvements* to depend on time in a linear or exponential fashion, and assume the rates of change and intercepts of such models are drawn from common global distributions. The extent to which sub-population forecasts borrow strength can also be specified; @Schinzinger2016 provide a family of mortality forecasting models deriving from the Lee-Carter specification, but with mortality improvements rather than mortality rates as the modelled quantity. This family includes different degrees of overlap between populations in the models and parameters for their time-varying index, providing for varying degrees of coherence in the final forecast.
+
+## Frontier Models
+
+As well as attempting to jointly model mortality across countries, one can attempt to specify a model that describes how the mortality *frontier* evolves, and describe how far behind this frontier each individual country is. @Bijak2004 provide fertility and mortality forecasts for 27 European countries using a mortality model based on the assumption that frontier life expectancy increases linearly, and that individual countries converge exponentially toward the frontier with different rates of convergence for males and females. Similarly, @Torri2012 model both frontier life expectancy and the gap between such life expectancy and that of individual countries. The gap is modelled using a logarithm transform to ensure countries always remain below the frontier, and various time-series models are applied to the gap, including the discrete geometric Brownian motion and the discrete geometric mean-reverting process.  @Pascariu2018 present a 'two-gap' mortality model, which considers both the gap between the female frontier life expectancy and the equivalent value for any particular country, and the gap between female and male life expectancy in that country, allowing for coherence both between and within countries. @Bergeron-Boucher2018 are concerned with the gap between male and female mortality, and provide a model which constructs a forecast of female mortality, and then separately forecast male-female mortality ratios. These papers provide ample evidence of the potential efficacy of thinking about mortality forecasting in terms of a mortality frontier. The model presented in this paper differs from these approaches in that it attempts to estimates a smooth frontier mortality profile at the level of age-specific rates, based on all available data, and jointly estimates positive deviations from this frontier in a Bayesian hierarchical framework.
+
+
+# Model Specification
+The model presented in this paper employs Generalised Additive Models (GAMs) [@Wood2006] to capture both the frontier mortality surface and deviations from it. GAMs model target quantities as sums of smooth functions of covariates, with identifying constraints ensuring such smooths are distinguishable.  @Hilton2019 describe a model for  mortality forecasting using GAMs.  The logarithm of mortality rates are considered as a smooth function of age and cohort, together with smooth age-specific improvement factors and non-smoothed period effects. Smooth terms are modelled using penalised B-splines [@Wood2006]. The model proposed in this paper extends this approach to provide for the inclusion of a mortality frontier. For the sake of simplicity, cohort effects included in the model of @Hilton2019 are jettisoned in order to simplify the development of the model, and an extension of the model could allow their re-inclusion.
+
+Starting from the likelihood, age-specific death counts $D_{xt}$ are given a negative binomial distribution, with a parameter $\text{exp}(\phi)$ determining the degree of over-dispersion relative to the Poisson:
+
+\begin{align}
+D_{xt} \sim \text{Negative Binomial}(m_{xt}R_{xt}, \text{exp}(\phi)).
+\end{align}
+
+The log mortality rate $\text{log}(m_{xt})$ is then modelled as a sum of frontier mortality term $f(x,t)$, a country specific term $g^{+}(x,t,c)$ that is constrained to be positive (ensuring that all country rates lie above the frontier), and a period effect $k_{tc}$. For the frontier term, smooth functions of age are used to capture the overall pattern of frontier log-mortality $s_{\mu}(x)$ and the age-specific pattern of mortality improvement factors $s_{\beta}(x)$, assuming that frontier mortality declines linearly. This assumption seems reasonable given the evidence presented in Figure \@ref(fig:mortimp), although the distinction between the empirical and modelled frontier should be stressed (the latter aims to discount random variability as well as incorporating assumptions about constant rates of improvement).
+The country-specific term is considered to be a product of a smooth positive term $s^{c}_{\gamma}(x)$ describing age-specific deviations from the frontier, and an additional term $\text{exp}(h(x,t,c))$ which describes changes in this deviation over time. The exponent in this factor ensures that the overall country specific term remains positive 
+
+\begin{align}
+\begin{split}
+\text{log}(m_{xtc}) &= f(x,t) + g^{+}(x,t,c) + \kappa_{tc} \\
+f(x,t) &= s_{\mu}(x) + s_{\beta}(x)t \\
+g^{+}(x,t,c) &= s_{\gamma}^{c}(x)\text{exp}(h(x,t,c)).
+\end{split}
+\end{align}
+
+
+The function $h(x,t,c)$ describing changes at the level of individual countries can potentially take a number of different forms. As a starting point, we consider $h(x,t,c)$ to comprise a single smooth age term interacting with time $h(x,t,c)=s^{c}_{\delta}(x)t$. Thus, the term $s^{c}_{\gamma}(x)$ can be interpreted as the level of deviation from the frontier at time $t=0$, and the $s^{c}_{\delta}(x)$ term controls the rate of decline or increase of this deviation. The pace of change with respect to time slows as the term $g^{+}(x,t,c)$ tends to zero, so that country specific rates approach the frontier only asymptotically. However, this model assumes that particular age-specific mortality rates either converge to or diverge from the frontier for particular countries; the direction of change cannot reverse. The introduction of a quadratic term $s_\lambda^{c}(x)t^{2}$ rectifies this problem, so that $h(x,t,c) =s_{\delta}^{c}(x)t + s_\lambda^{c}(x)t^{2}$. 
+
+More varied patterns of deviations from the frontier can be considered by allowing more flexibility in the specification of $h()$. Any number of combinations of age, period and even cohort terms may be included, as long as these are sufficiently constrained so that the other terms in the model are identifiable. Two particular special cases may be important. Firstly, we might allow for variations in the pace and direction of mortality change by incorporating the bi-variate form of @Lee1992, so that $h(x,t,c)=s_\delta^{c}(x)k_{tc}$. In this case, we would no longer include the period term $\kappa_{tc}$, as its function would be subsumed by the new $k_{tc}$ term. The usual Lee-Carter constraints would be required to ensure identifiability. Secondly, an even greater degree of flexibility might be provided by including a two-dimensional spline term $h(x,t,c)=s^{c}_\eta(x,t)$, in the spirit of the model of @Currie2004. Again, constraints would be required for in order identify such effects. 
+
+All smooth terms are modelled using penalised B-splines (@Wood2006). Separate B-spline basis functions of age are defined for the frontier mortality term and the country-specific deviations, allowing a larger number of knots to be used to capture the pattern of frontier mortality:
+
+
+\begin{align}
+\begin{split}
+s_{\mu}(x) &= B_{f}(x)\pmb{\mu}  \\
+s_{\beta}(x) &=  B_{f}(x)\pmb{\beta} \\
+s_{\gamma}^{(c)}(x) &= B_{g}(x)\pmb{\gamma_{c}} \\
+s_{\delta}^{(c)}(x) &= B_{g}(x) \pmb{\delta_{c}}\\
+s_{\lambda}^{(c)}(x) &= B_{g}(x) \pmb{\lambda_{c}}\\
+s^{c}_\eta(x,t) &=  \left( B_{g}(x) \otimes B_{l}(t) \right) \pmb{\eta_{c}}.
+\end{split}
+\end{align}
+
+
+
+
+First difference prior penalties are applied to basis function coefficients to ensure smoothness with respect to age and guard against over-fitting [@Wood2006; @Lang2001]. As in @Hilton2019, the null space of these penalties is penalised separately to ensure that the resulting prior is proper. The matrix of country specific basis function coefficients $\Gamma = (\pmb{\gamma_1}, \pmb{\gamma_2}, \dots, \pmb{\gamma_C})$, which determine the main deviation term $s_{\gamma}(x)$, is treated slightly differently. These coefficients are constrained to be positive, ensuring that the smooth term as a whole is positive everywhere, as all elements of the matrix of basis functions $B(\pmb{x})$ are positive. As with other terms, the coefficient matrix has a smoothness prior applied to each column penalising first differences in the age direction [@Currie2004], but also double exponential random effect priors applied across each row, with separate variance parameters. The later prior pulls country-specific deviations toward zero, in effect ensuring that the frontier remains close to the lowest observed mortality rates at each age. The full prior specification for $\Gamma$ is:
+
+\begin{align}
+\begin{split}
+\pmb{\gamma_y} = (\gamma_{y1}, \gamma_{y2}, ..., \gamma_{yC})^{T} \\
+\gamma_{yc} > 0 \; \text{for all} \; y,c  \\
+\gamma_{yc}  \sim N(0,\sigma_y) \\
+\sigma_y \sim \text{Exponential}(0.2),
+\end{split}
+\end{align}
+
+where $y$ indexes a particular basis function in $B_g(x)$.
+
+The period effect $k_{tc}$ is a country specific random walk capturing year-to-year random variation in mortality caused by factors such as flu and temperature variations. In order to ensure that the overall time-trends are captured in the other model parameters, the $\kappa$ term is constrained so that it sums to zero, and contains no linear or quadratic components. The random walk prior is adjusted to account for these constraints in a similar way to @Hilton2019. In the examples that follow, period effects of different countries are considered independent, although the prior correlation structure could be specified in greater detail, allowing different levels of correlation between countries, or accounting for geographical or social-cultural factors that might induce correlation between mortality rates across countries.
+
+
+In summary, the proposed model has some desirable features. Firstly, it produces smooth estimates and forecasts of mortality with associated uncertainty. Secondly, although mortality improvements in particular countries may wane and wax in the short term, the overall global decline in best-practice mortality appears to be relatively consistent. This model provides a means of estimating a smooth profile and rate of change for this frontier mortality. Thirdly, where a particular country has displayed fast decline in mortality, we anticipate that this growth will slow as that country approaches the limits of what is currently medically possible. This model formalises this assumption by ensuring country mortality is limited by the level of the frontier.
+
+
+# Data and Estimation
+The Human Mortality Database [@hmd] was used to obtain age-specific death and exposure data for 19 developed countries with reasonably large populations and for which data is available for at least the period 1961 onward. Only female data are used in this instance; future work could plausibly consider modelling males jointly by extending the 'double-gap' life-expectancy model of @Pascariu2018 to a mortality rate context. Infant mortality and centenarians were excluded, although extending the model to incorporate these age groups should be possible. Data from 1961-2006 is used to fit the three models: the linear and quadratic variants of the proposed model and comparator model where each country is fitted independently. Data from 2007-2016 held back for purposes of assessment. Table \@ref(tab:hmdtable) provides a list of the countries used, together with the HMD abbreviations which are used for brevity in the plots of results which follow.
+
+```{r hmdtable}
+library(kableExtra)
+
+tt <- read.csv(file.path(here(), "data","country_names.csv"))
+kable(tt %>% select(Country_name, Country) %>% 
+        rename(`Country name`=Country_name, `HMD Code`=Country),
+       caption = 'Country data used for fitting and corresponding HMD codes',
+      booktabs=T, escape=T, linesep="") %>% 
+  kable_styling() 
+```
+
+The frontier and country-specific elements of the models were fitted jointly using the `stan` Bayesian modelling software [@StanDevelopmentTeam2019]. Each model run consisted of four chains, each consisting of 8000 iterations, with the first half of each chain used to optimise the relevant sampling parameters and discarded, and additionally the remaining samples where thinned by a factor of two, to reduce memory usage.  Diagnostic measures suggested that each chain had converged to the target distribution.
+
+# Results
+
+## Frontier Posterior
+In this section, model results are presented for the quadratic model variant. Starting with the frontier model, Figure \@ref(fig:frontierpost) shows the posterior distribution of the frontier surface defined by $s_\mu(x) + s_\beta(x)t$ at selected years. These distribution are plotted together with corresponding empirical log rates for the 19 countries included in the estimation processes. Each country is displayed in a different colour, although distinguishing individual country's observation is not important for interpretation of the chart. The frontier estimates lie below but close to the vast majority of observed rates. At younger ages, some observations lie beyond the frontier. This is to be expected, as the estimated frontier is supposed to represent the lower limit of the central rate $m_{x,t}$, but it does not account for the additional negative binomial uncertainty in deaths. In other words, although the force of mortality will generally lie above the frontier, random variation in realised death counts could result in observed rates that lie below it. Thus, the empirical mortality frontier is distinct from the 'true' mortality frontier that we are trying to model. Younger ages are more likely to display this effect, because mortality is much lower at these ages, and so the effect of negative binomial uncertainty on observed log-rates is far greater. 
+
+It should also be noted that unlike the country-specific deviations, the period effect for particular years $\kappa_tc$ may be negative, and in some cases this may result in modelled mortality rates that lie below the frontier. Given that the scale of the period effects is generally small relative to the deviations, this will only occur for countries that are already very close to the frontier, and is not deemed to be a significant shortcoming in the model specification.
+
+The final panel in Figure \@ref(fig:frontierpost) is a forecast for 2016. Again observations for the majority of the age range appear consistent with our interpretation of the frontier, although it is possible that decline in the frontier for young adults aged 20-30 is slightly under-estimated by the model.
+
+```{r frontierpost, fig.cap="Posterior distribution of frontier mortality, selected years. Plotted data points represent all observations in a given year; colours denote countries.", fig.height=10, fig.width=10}
+
+results <- readRDS(file.path(results_prefix, 
+                             params$quad_ts,
+                             "mort_pacer_quad_2006.rds"))
+                            
+stan_data <- results$stan_data
+mort_fit <- results$mort_fit
+
+frontier_df <- get_frontier_mortality(stan_data, mort_fit) %>% 
+  rename(`Log rate`=Log_rate)
+
+years <- c(1961, 1980, 2000, 2016)
+ggplot(frontier_df %>% filter(Year %in% years), 
+       aes(x=Age,y=`Log rate`)) + 
+  facet_wrap(~Year) +
+  geom_point(data=emp_rate_df %>% filter(Year %in% years) %>% 
+               rename(`Log rate`=Log_rate), 
+             aes(colour=Country),show.legend = FALSE,
+             size=0.5) + 
+  geom_interval()
+
+
+```
+
+
+Moving on to the results for individual countries, Figure \@ref(fig:countryintercept) displays the posterior of country-specific deviation term $s^{c}_\gamma(x)$ by age for a few selected countries, namely France, England and Wales, Japan, and Norway. Results for all countries are provided in the supplementary materials. This term defines deviations at the intercept of the time index variable $t$. For fitting, this index is centred and normalised, so the deviations displayed correspond to the distance from the frontier in the middle of the fitting period 1961-2006 (about 1983). One can see that England and Wales approach best-practice mortality for young adults, but are further away at age 60. In contrast, Japanese mortality is very close to frontier from ages 30-60, while French mortality appears to take the lead around age 60. 
+
+```{r countryintercept, fig.cap="Posterior distribution of country-specific deviations at the intercept of the time index for selected countries"}
+countries <- stan_data$country_decode %>% 
+  arrange(country_f) %>% select(Country) %>% unlist()
+
+
+country_intercept <- map_df(countries, 
+                            function(country) { 
+                              get_country_intercept(stan_data, 
+                                                    mort_fit, 
+                                                    country) %>%
+                                mutate(Country=country)})
+
+plot_countries <- c("GBRTENW", "JPN", "NOR", "FRATNP")
+ggplot(country_intercept %>% filter(Country %in% plot_countries), 
+       aes(x=Age, y=Deviation)) + 
+  geom_interval(aes(quantile=Quantile)) +
+  facet_wrap(~Country)
+
+```
+
+Knowledge of the extent of deviations may provide useful information for government bodies and service providers. If a particular country appear to be lagging behind in best-practice mortality at particular age groups, this may provide useful a target for future interventions. Comparing the speed of convergence towards the frontier with similar countries may also provide useful benchmarking information.
+
+A key question is how effectively the model can fit observed data and predict future trends in mortality. For illustrative purposes, we display posterior distributions for particular age-specific rates across time for England and Wales in Figure \@ref(fig:post). Empirical rates are plotted as red dots, while the beginning of the forecast period is indicated by a black horizontal line. The posterior mean for each age-specific rate lies above frontier mortality boundary. Most empirical observations lie within the 90% credible interval, both over the fitting period and for the forecasts, indicating the model does a reasonable job at capturing our uncertainty about the data. There is some evidence that our forecasts are overly optimistic about the extent to which mortality for England and Wales will decline towards the frontier around age 70; here the last few observations fall outside the predictive interval. 
+
+```{r post, fig.height=14, fig.width=10, fig.cap="Posterior predictive distribution of log-mortality rates for selected ages, England and Wales"}
+nb_rate_df <- get_nb_log_rate_df(stan_data, mort_fit, emp_rate_df, "GBRTENW")
+
+plot_rate_df <- rbind(nb_rate_df %>% 
+                        mutate(Type="Posterior Rate") %>%
+                        rename(`Log rate`=Log_rate),
+                      frontier_df %>%
+                        mutate(Type="Frontier"))
+                        
+
+ggplot(plot_rate_df %>% filter( Age %in% ages),
+       aes(x=Year,y=`Log rate`, colour=Type)) + 
+  geom_interval(aes(quantile=Quantile, group=Type), intervals = c(0,0.9)) +
+  facet_wrap(~Age, scales="free", ncol=1) +
+  geom_vline(xintercept=stan_data$config$joy) + 
+  geom_point(data=emp_rate_df %>% filter(Age %in% ages,
+                                         Year>= stan_data$config$start_year,
+                                         Country=="GBRTENW") %>%
+               rename(`Log rate`=Log_rate),
+             col="red") + 
+  ggtitle("Log Rate Posterior for selected ages vs Empirical",
+          "England and Wales") 
+
+```
+
+Of course, a more thorough examination of the model is needed to decide its efficacy. Extensive plots for all countries can be found in the supplemental material. It is evident that for the quadratic model in particular, some countries display unrealistic forecasts at particular ages; the cause and potential remedy to this issue is discussed in Section \@ref(discussion). For the purposes of formal assessment, root-mean squared error (RMSE) and empirical coverage (the proportion of observations falling within the posterior interval of a given probability) were calculated over the forecast period 2007-2016 for all countries. RMSE was calculated using the mean of the posterior rate for each forecast year and age as the relevant point estimates. One goal of the assessment is to provide evidence that including information about the frontier is useful for forecasting. To this end a series of models were fitted to each country independently which included only smooth age, age-specific improvement, and period terms:
+$$
+\text{log}(m_{xt}) = s_\mu(x) + s_\beta(x)t + \kappa_t.
+$$
+Thus, we can compare the forecast performance of the model in which country forecasts are independent (labelled 'Independent' in subsequent plots) with variants of the frontier model we are proposing. Specifically, we investigate two different choices of the $h(x,t,c)$ function determining the change in country mortality relative to the frontier:
+
+\begin{align}
+h_1(x,t,c) =& \; s_\delta(x)t \\
+h_2(x,t,c) =& \; s_\delta(x)t + s_\lambda(x)t^2.
+\end{align}
+
+
+
+```{r assess_setup}
+
+assess_quad_df <- readRDS(file.path(results_prefix, 
+                                    params$quad_ts, 
+                                    "assess.rds")) %>%
+  mutate(Model="Quadratic")
+assess_linear_df <- readRDS(file.path(results_prefix,
+                                      params$linear_ts, 
+                                      "assess.rds")) %>%
+  mutate(Model="Linear")
+assess_independent_df <- readRDS(file.path(results_prefix,
+                                           params$ind_ts, 
+                                           "assess.rds")) %>% 
+  mutate(Model="Independent")
+
+assess_df <- rbind(assess_quad_df,
+                   assess_linear_df,
+                   assess_independent_df)
+
+assess_ind_comp <- assess_df %>% select(Country, Model, RMSE) %>% 
+  filter(Model!="Independent") %>%
+  left_join(assess_independent_df %>% rename(RMSE_ind= RMSE) %>% 
+              select(Country, RMSE_ind)) %>%
+  mutate(`RMSE vs Independence`=RMSE- RMSE_ind)
+
+RMSE_win <-assess_ind_comp %>% group_by(Model) %>% summarise(Win=sum(`RMSE vs Independence` <0))
+
+cov_win  <- assess_df %>% filter(C_90<0.8) %>% group_by(Model) %>% summarise(N=n())
+```
+
+These are referred to as the *linear* and *quadratic* models respectively. To give a clear idea of the whether these variants are doing better than the comparator independence model, Figure \@ref(fig:RMSE) displays the difference between RMSE for the variants and the independence models for each country. If this value is negative (to the left of the axis at zero in the chart), it indicates that the variant model performs better. If it is positive, the reverse is true. The assessment reveals that for `r RMSE_win %>% filter(Model=="Quadratic") %>% select(Win) %>% as.numeric()` of the 19 countries, the quadratic model has lower a RMSE over the forecast period than the independent model. For the linear model, the results are closer: it is preferred by this metric over the independence model in `r RMSE_win %>% filter(Model=="Linear") %>% select(Win) %>% as.numeric()` of 19 cases.
+
+
+
+```{r RMSE,fig.cap="Difference between RMSE of frontier model variants and a similar model fitted independent to each country"}
+ggplot(assess_ind_comp, aes(x=Country, y= `RMSE vs Independence`,colour=Model)) + 
+  geom_point() + 
+  coord_flip() +
+  geom_hline(yintercept=0)
+
+
+```
+
+The accuracy of point estimates are not the only relevant area of assessment. Quantification of uncertainty in forecasts is important in managing longevity risk, and so the extent to which observations fall within forecast intervals is also important. Figure \@ref(fig:coverage) provides the proportion of observations that fall within the central 90% predictive probability interval. Ideally, this value should approach 90%, indicating forecast uncertainty appears well calibrated. However, given that for each country we only observe one correlated set of rates (over the period 2006-2016), this proportion does not correspond exactly with the frequentist interpretation of coverage, which relies on independent replications of the same experiment. Therefore, we must not over-interpret the reported empirical coverage statistics. In general, the results are encouraging. A majority of all models have empirical coverages ranging between 80% and 95% for the 90% interval. The quadratic model has `r cov_win %>% filter(Model=="Quadratic") %>% select(N) %>% as.numeric()` observations with coverages below 80%, compared to `r cov_win %>% filter(Model=="Independent") %>% select(N) %>% as.numeric()` for the independent model and `r cov_win %>% filter(Model=="Linear") %>% select(N) %>% as.numeric()` for the linear variant. The USA, Denmark and Spain appear to have patterns of recent mortality decline which are difficult to capture for all models. The quadratic model appears to be the better performing model overall based on these metrics, although it appears to perform particularly badly for both RMSE and coverage in the case of the Netherlands.
+
+
+```{r coverage, fig.cap="Proportion of observations falling within 90% predictive interval for the independent model, and linear and quadratic variants of the frontier model."}
+assess_df %>% rename(`Proportion of Obs. in Interval`=C_90) %>%
+  ggplot(aes(x=Country,y=`Proportion of Obs. in Interval`,colour=Model)) + geom_point() +
+  coord_flip() + geom_hline(yintercept=0.9)
+```
+
+
+# Discussion
+
+This paper has set out a model of mortality that estimates the evolution of frontier mortality as a set of smooth rates, and then considers individual countries as deviations from this profile. Frontier mortality is constrained to lie below the modelled force of mortality for all individual countries, but the prior specification ensures that it remains close to best-performing countries by penalising the magnitude of the individual country deviations. Estimates of frontier mortality and the extent of particular country deviations from this standard may provide useful benchmarking information to public bodies. The model was fitted jointly to 19 countries, and its performance in short-term forecasting is compared to a similar model without a frontier component in which each country was modelled independently. The frontier model was found to perform better in terms of the accuracy of its central forecasts than the independence model over a 10-year time horizon. These findings suggest that a frontier model has potential for use in forecasting mortality for a large group of countries, perhaps particularly by multinational bodies with access to harmonised data from a variety of sources.
+
+Some limitations and areas for future investigation can be identified. Firstly, a longer time horizon may be required to accurate assess the usefulness of the model. Mortality forecasts are typically used to compute cohort life expectancies, which require considerable longer forecasts than have been provided here. Secondly, forecasts for females only were produced in the examples above. Extending the approach described to multiple sexes using a 'double-gap' model, as employed by @Pascariu2018 for life expectancy, may have some utility. Thirdly, at present simple linear and quadratic terms were chosen to describe the evolution of country specific deviations from the frontier. These may not be the best choices for this element of the model. In particular, over longer time horizons, the quadratic model may predict unrealistic divergences from the frontier at some ages in countries where recent stagnation in mortality rates have been observed, leading in some cases to predicted increases in mortality. Section \@ref(model-specification) set out two possible alternative models based on @Lee1992 and @Currie2004. Specifying priors on the time-varying elements of these models that favour mean-reversion will help to ensure forecast means do not diverge from the frontier over the long-term. Finally, a comparison between frontier models and those that provide for convergence towards a mean trend might be investigated; it may be that such models produce similar conclusions, or that one or another is more efficacious.
+
+
+
+
+\newpage
+
+# References {-}
