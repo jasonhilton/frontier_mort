@@ -114,7 +114,7 @@ front_mort %>% filter(Year %in% years) %>%
 
 The pattern of mortality frontier improvement factors is an important consideration for modelling. Restricting ourselves to more recent years, we can observe the pattern of decline in empirical frontier mortality over time for particular ages in Figure \@ref(fig:mortimp). By eye, it would appear that such declines have been relatively linear since 1960.
 
-```{r mortimp, fig.cap="Patterns of Empirical Frontier Log-Mortality Improvement by Age. Human Mortality Database", fig.height=7}
+```{r mortimp, fig.cap="Patterns of Empirical Frontier Log-Mortality Improvement by Age. Human Mortality Database", fig.height=5, fig.width=6}
 
 
 ages <- c(1,30,50,70,90)
@@ -285,7 +285,7 @@ It should also be noted that unlike the country-specific deviations, the period 
 
 The final panel in Figure \@ref(fig:frontierpost) is a forecast for 2016. Again observations for the majority of the age range appear consistent with our interpretation of the frontier, although it is possible that decline in the frontier for young adults aged 20-30 is slightly under-estimated by the model.
 
-```{r frontierpost, fig.cap="Posterior distribution of frontier mortality, selected years. Plotted data points represent all observations in a given year; colours denote countries.", fig.height=5, fig.width=6}
+```{r frontierpost, fig.cap="Posterior distribution of frontier mortality, selected years. Plotted data points represent all observations in a given year; colours denote countries.", fig.height=4, fig.width=6}
 
 results <- readRDS(file.path(results_prefix,
                              params$quad_ts,
@@ -341,7 +341,7 @@ Knowledge of the extent of deviations may provide useful information for governm
 
 A key question is how effectively the model can fit observed data and predict future trends in mortality. For illustrative purposes, we display posterior distributions for particular age-specific rates across time for England and Wales in Figure \@ref(fig:post). Empirical rates are plotted as red dots, while the beginning of the forecast period is indicated by a black horizontal line. The posterior mean for each age-specific rate lies above frontier mortality boundary. Most empirical observations lie within the 90% credible interval, both over the fitting period and for the forecasts, indicating the model does a reasonable job at capturing our uncertainty about the data. There is some evidence that our forecasts are overly optimistic about the extent to which mortality for England and Wales will decline towards the frontier around age 70; here the last few observations fall outside the predictive interval. 
 
-```{r post, fig.height=8, fig.width=8, fig.cap="Posterior predictive distribution of log-mortality rates for selected ages, England and Wales"}
+```{r post, fig.height=6, fig.cap="Posterior predictive distribution of log-mortality rates for selected ages, England and Wales"}
 nb_rate_df <- get_nb_log_rate_df(stan_data, mort_fit, emp_rate_df, "GBRTENW")
 
 plot_rate_df <- rbind(nb_rate_df %>% 
@@ -354,7 +354,7 @@ plot_rate_df <- rbind(nb_rate_df %>%
 ggplot(plot_rate_df %>% filter( Age %in% ages),
        aes(x=Year,y=`Log rate`, colour=Type)) + 
   geom_interval(aes(quantile=Quantile, group=Type), intervals = c(0,0.9)) +
-  facet_wrap(~Age, scales="free", ncol=1) +
+  facet_grid(Age~., scales="free") +
   geom_vline(xintercept=stan_data$config$joy) + 
   geom_point(data=emp_rate_df %>% filter(Age %in% ages,
                                          Year>= stan_data$config$start_year,
