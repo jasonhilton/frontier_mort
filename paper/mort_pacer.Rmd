@@ -2,8 +2,8 @@
 title: "Modelling frontier mortality using Bayesian generalised additive models"
 author: 
  - Jason Hilton$^1$, Erengul Dodd$^1$, Jonathan J. Forster$^2$, Peter W.F Smith$^1$
- - \footnotesize $^1$ Centre for Population Change,  University of Southampton
- - $^2$ Department of Statistics, University of Warwick
+ - \footnotesize $^1$ University of Southampton
+ - \footnotesize $^2$ Department of Statistics, University of Warwick
  - "Correspondence: J.D.Hilton@soton.ac.uk"
 output: 
   bookdown::pdf_document2:
@@ -13,8 +13,6 @@ output:
 header-includes:
   - \usepackage{caption}
   - \captionsetup[table]{skip=6pt}
-  - \usepackage{setspace}
-  - \doublespacing
 fontsize: 12pt
 bibliography: mort_pacer.bib
 number-sections: true
@@ -26,7 +24,7 @@ params:
   linear_ts: "20191013_210236"
   quad_ts: "20191014_121020"
   ind_ts: "20191014_092729"
-abstract: Mortality rates differ across countries and years, and the country with the lowest mortality has historically tended to change over time. Following the classic Science paper by Oeppen and Vaupel (2002), for any given year a hypothetical mortality 'frontier' can be defined as the lower limit of the force of mortality at each age, taken across all countries. It is expected that change in this frontier reflects global technological and medical advances, which may display a more stable trend over time than the patterns in mortality improvement displayed by any particular country. Employing the model of Hilton et al. (2019), we jointly estimate frontier mortality as well as mortality rates for individual countries. Generalised additive models are used to estimate a smooth set of baseline frontier mortality rates and mortality improvements, and country-level mortality is modelled as a set of smooth, positive deviations from this, forcing the mortality estimates for individual countries to lie above the frontier. The assumed stability of the mortality frontier can also be exploited for forecasting purposes. This model is fitted to data for a selection of countries from the Human Mortality Database. The efficacy of the model in forecasting over a 10-year horizon is compared to a similar model fitted to each country separately. \newpage
+abstract: Mortality rates differ across countries and years, and the country with the lowest observed mortality has changed over time. However, the classic Science paper by Oeppen and Vaupel (2002) identified a persistent linear trend over time in maximum national life expectancy. In this work, we look to exploit similar regularities in age-specific mortality by considering for any given year a hypothetical mortality ‘frontier’, which we define as the lower limit of the force of mortality at each age across all countries. Change in this frontier reflects incremental advances across the wide range of social, institutional and scientific dimensions that influence mortality. We jointly estimate frontier mortality as well as mortality rates for individual countries. Generalised additive models are used to estimate a smooth set of baseline frontier mortality rates and mortality improvements, and country-level mortality is modelled as a set of smooth, positive deviations from this, forcing the mortality estimates for individual countries to lie above the frontier. This model is fitted to data for a selection of countries from the Human Mortality Database. The efficacy of the model in forecasting over a 10-year horizon is compared to a similar model fitted to each country separately. \newpage
 ---
 
 ```{r setup, include=FALSE}
