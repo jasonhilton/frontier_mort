@@ -604,14 +604,14 @@ body {
 <h1 id="modelling-frontier-mortality-using-bayesian-generalised-additive-models">Modelling Frontier Mortality using Bayesian Generalised Additive Models</h1>
 <p>This repository contains the code need to reproduce the results in the paper “Modelling Frontier Mortality using Bayesian Generalised Additive Models”. The paper is available from this repo at: <a href="https://github.com/jasonhilton/frontier_mort/raw/master/paper/mort_pacer.pdf">https://github.com/jasonhilton/frontier_mort/raw/master/paper/mort_pacer.pdf</a>. The appendix is similarly at: <a href="https://github.com/jasonhilton/frontier_mort/raw/master/paper/appendix.pdf">https://github.com/jasonhilton/frontier_mort/raw/master/paper/appendix.pdf</a></p>
 <h1 id="requirements">Requirements</h1>
-<p>Running the code requires a recent version of <code>R</code> (&gt;3.5 is probably best) and of <code>rstan</code>, the <code>R</code> interface to stan (see here)[<a href="https://github.com/stan-dev/rstan/wiki/RStan-Getting-Started">https://github.com/stan-dev/rstan/wiki/RStan-Getting-Started</a>].</p>
+<p>Running the code requires a recent version of <code>R</code> (&gt;3.5 is probably best) and of <code>rstan</code>, the <code>R</code> interface to stan (<a href="https://github.com/stan-dev/rstan/wiki/RStan-Getting-Started">see here</a>.</p>
 <p>Although it is not strictly necessary, a High Performance Computing platform was used to minimise runtime. The portable batch system (PBS) scripts needed to conduct the runs on this platform are included, and it should be possible to run these on similar systems with minimal adaptation.</p>
 <p>Processing the results is memory intensive. The systems used have a minimum of 16gb of RAM. The scripts may run on systems with less RAM, but this is untested. It is possible the process may hang as the available ram is exhausted and swap space begins to be used. If you wish to replicate the result but do not have access to a system with enough RAM, let me know - I may be able to optimise the code to be less memory intensive.</p>
 <p>To produce the final manuscript, Rmarkdown, knitr, latex and pandoc are used.</p>
 <h2 id="storage">Storage</h2>
 <p>The complete set of MCMC results take up less than 1GB.</p>
 <hr />
-<h1 id="reproducing-the-results">Reproducing the results.</h1>
+<h1 id="reproducing-the-results.">Reproducing the results.</h1>
 <p>The results presented in the paper can be reproduced by following the steps below. All code chucks in this document should be run from the terminal from the base directory of this repository (that is, the one that contains this file).</p>
 <h2 id="installing-r-packages">Installing R packages</h2>
 <ul>
@@ -657,104 +657,183 @@ body {
 <h3 id="local-machine">Local Machine</h3>
 <div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb9-1" data-line-number="1"><span class="kw">library</span>(tibble)</a>
 <a class="sourceLine" id="cb9-2" data-line-number="2"><span class="kw">library</span>(magrittr)</a>
-<a class="sourceLine" id="cb9-3" data-line-number="3"><span class="kw">library</span>(tidyr)</a>
-<a class="sourceLine" id="cb9-4" data-line-number="4"><span class="kw">library</span>(purrr)</a>
-<a class="sourceLine" id="cb9-5" data-line-number="5"><span class="kw">library</span>(lazyeval)</a>
-<a class="sourceLine" id="cb9-6" data-line-number="6"><span class="kw">library</span>(tidyselect)</a>
-<a class="sourceLine" id="cb9-7" data-line-number="7"><span class="kw">library</span>(rstan)</a>
-<a class="sourceLine" id="cb9-8" data-line-number="8"><span class="kw">library</span>(yaml)</a>
-<a class="sourceLine" id="cb9-9" data-line-number="9"><span class="kw">library</span>(here)</a>
-<a class="sourceLine" id="cb9-10" data-line-number="10"><span class="kw">library</span>(git2r)</a>
-<a class="sourceLine" id="cb9-11" data-line-number="11"><span class="kw">library</span>(HMDHFDplus)</a>
-<a class="sourceLine" id="cb9-12" data-line-number="12"><span class="kw">library</span>(curl)</a>
-<a class="sourceLine" id="cb9-13" data-line-number="13"><span class="kw">library</span>(ggplot2)</a>
-<a class="sourceLine" id="cb9-14" data-line-number="14"><span class="kw">library</span>(ggfan)</a>
-<a class="sourceLine" id="cb9-15" data-line-number="15"><span class="kw">library</span>(dplyr)</a>
-<a class="sourceLine" id="cb9-16" data-line-number="16"><span class="kw">library</span>(devtools)</a>
-<a class="sourceLine" id="cb9-17" data-line-number="17">devtools<span class="op">::</span><span class="kw">session_info</span>()</a></code></pre></div>
-<pre><code>## ─ Session info ──────────────────────────────────────────────────────────
+<a class="sourceLine" id="cb9-3" data-line-number="3"><span class="kw">library</span>(tidyr)</a></code></pre></div>
+<pre><code>## 
+## Attaching package: 'tidyr'
+
+## The following object is masked from 'package:magrittr':
+## 
+##     extract
+</code></pre>
+<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb11-1" data-line-number="1"><span class="kw">library</span>(purrr)</a></code></pre></div>
+<pre><code>## 
+## Attaching package: 'purrr'
+
+## The following object is masked from 'package:magrittr':
+## 
+##     set_names
+</code></pre>
+<div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb13-1" data-line-number="1"><span class="kw">library</span>(lazyeval)</a></code></pre></div>
+<pre><code>## 
+## Attaching package: 'lazyeval'
+
+## The following objects are masked from 'package:purrr':
+## 
+##     is_atomic, is_formula
+</code></pre>
+<div class="sourceCode" id="cb15"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb15-1" data-line-number="1"><span class="kw">library</span>(tidyselect)</a>
+<a class="sourceLine" id="cb15-2" data-line-number="2"><span class="kw">library</span>(rstan)</a></code></pre></div>
+<pre><code>## Loading required package: StanHeaders
+
+## Loading required package: ggplot2
+
+## rstan (Version 2.21.2, GitRev: 2e1f913d3ca3)
+
+## For execution on a local, multicore CPU with excess RAM we recommend calling
+## options(mc.cores = parallel::detectCores()).
+## To avoid recompilation of unchanged Stan programs, we recommend calling
+## rstan_options(auto_write = TRUE)
+
+## 
+## Attaching package: 'rstan'
+
+## The following object is masked from 'package:tidyr':
+## 
+##     extract
+
+## The following object is masked from 'package:magrittr':
+## 
+##     extract
+</code></pre>
+<div class="sourceCode" id="cb17"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb17-1" data-line-number="1"><span class="kw">library</span>(yaml)</a>
+<a class="sourceLine" id="cb17-2" data-line-number="2"><span class="kw">library</span>(here)</a></code></pre></div>
+<pre><code>## here() starts at /storage/frontier_mort
+</code></pre>
+<div class="sourceCode" id="cb19"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb19-1" data-line-number="1"><span class="kw">library</span>(git2r)</a></code></pre></div>
+<pre><code>## 
+## Attaching package: 'git2r'
+
+## The following object is masked from 'package:rstan':
+## 
+##     lookup
+
+## The following objects are masked from 'package:purrr':
+## 
+##     is_empty, when
+
+## The following object is masked from 'package:magrittr':
+## 
+##     add
+</code></pre>
+<div class="sourceCode" id="cb21"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb21-1" data-line-number="1"><span class="kw">library</span>(HMDHFDplus)</a>
+<a class="sourceLine" id="cb21-2" data-line-number="2"><span class="kw">library</span>(curl)</a>
+<a class="sourceLine" id="cb21-3" data-line-number="3"><span class="kw">library</span>(ggplot2)</a>
+<a class="sourceLine" id="cb21-4" data-line-number="4"><span class="kw">library</span>(ggfan)</a>
+<a class="sourceLine" id="cb21-5" data-line-number="5"><span class="kw">library</span>(dplyr)</a></code></pre></div>
+<pre><code>## 
+## Attaching package: 'dplyr'
+
+## The following object is masked from 'package:git2r':
+## 
+##     pull
+
+## The following objects are masked from 'package:stats':
+## 
+##     filter, lag
+
+## The following objects are masked from 'package:base':
+## 
+##     intersect, setdiff, setequal, union
+</code></pre>
+<div class="sourceCode" id="cb23"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb23-1" data-line-number="1"><span class="kw">library</span>(devtools)</a></code></pre></div>
+<pre><code>## Loading required package: usethis
+</code></pre>
+<div class="sourceCode" id="cb25"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb25-1" data-line-number="1">devtools<span class="op">::</span><span class="kw">session_info</span>()</a></code></pre></div>
+<pre><code>## ─ Session info ───────────────────────────────────────────────────────────────
 ##  setting  value                       
-##  version  R version 3.6.1 (2019-07-05)
-##  os       Ubuntu 18.04.3 LTS          
+##  version  R version 3.6.3 (2020-02-29)
+##  os       Ubuntu 18.04.5 LTS          
 ##  system   x86_64, linux-gnu           
-##  ui       RStudio                     
+##  ui       X11                         
 ##  language en_GB:en                    
 ##  collate  en_GB.UTF-8                 
 ##  ctype    en_GB.UTF-8                 
 ##  tz       Europe/London               
-##  date     2019-10-15                  
+##  date     2020-10-28                  
 ## 
-## ─ Packages ──────────────────────────────────────────────────────────────
-##  package     * version   date       lib source        
-##  assertthat    0.2.1     2019-03-21 [1] CRAN (R 3.6.0)
-##  backports     1.1.4     2019-04-10 [1] CRAN (R 3.6.0)
-##  bitops        1.0-6     2013-08-17 [1] CRAN (R 3.6.0)
-##  callr         3.3.1     2019-07-18 [1] CRAN (R 3.6.1)
-##  cli           1.1.0     2019-03-19 [1] CRAN (R 3.6.0)
-##  colorspace    1.4-1     2019-03-18 [1] CRAN (R 3.6.0)
-##  crayon        1.3.4     2017-09-16 [1] CRAN (R 3.6.0)
-##  curl        * 4.2       2019-09-24 [1] CRAN (R 3.6.1)
-##  desc          1.2.0     2018-05-01 [1] CRAN (R 3.6.0)
-##  devtools    * 2.2.1     2019-09-24 [1] CRAN (R 3.6.1)
-##  digest        0.6.21    2019-09-20 [1] CRAN (R 3.6.1)
-##  dplyr       * 0.8.3     2019-07-04 [1] CRAN (R 3.6.1)
-##  ellipsis      0.3.0     2019-09-20 [1] CRAN (R 3.6.1)
-##  evaluate      0.14      2019-05-28 [1] CRAN (R 3.6.1)
-##  fs            1.3.1     2019-05-06 [1] CRAN (R 3.6.0)
-##  ggfan       * 0.1.3     2019-03-07 [1] CRAN (R 3.6.1)
-##  ggplot2     * 3.2.1     2019-08-10 [1] CRAN (R 3.6.1)
-##  git2r       * 0.26.1    2019-06-29 [1] CRAN (R 3.6.1)
-##  glue          1.3.1     2019-03-12 [1] CRAN (R 3.6.0)
-##  gridExtra     2.3       2017-09-09 [1] CRAN (R 3.6.0)
-##  gtable        0.3.0     2019-03-25 [1] CRAN (R 3.6.0)
-##  here        * 0.1       2017-05-28 [1] CRAN (R 3.6.1)
-##  HMDHFDplus  * 1.9.1     2018-08-09 [1] CRAN (R 3.6.1)
-##  htmltools     0.4.0     2019-10-04 [1] CRAN (R 3.6.1)
-##  httr          1.4.1     2019-08-05 [1] CRAN (R 3.6.1)
-##  inline        0.3.15    2018-05-18 [1] CRAN (R 3.6.0)
-##  knitr         1.25      2019-09-18 [1] CRAN (R 3.6.1)
-##  labeling      0.3       2014-08-23 [1] CRAN (R 3.6.0)
-##  lazyeval    * 0.2.2     2019-03-15 [1] CRAN (R 3.6.1)
-##  lifecycle     0.1.0     2019-08-01 [1] CRAN (R 3.6.1)
-##  loo           2.1.0     2019-03-13 [1] CRAN (R 3.6.0)
-##  magrittr    * 1.5       2014-11-22 [1] CRAN (R 3.6.1)
-##  matrixStats   0.54.0    2018-07-23 [1] CRAN (R 3.6.0)
-##  memoise       1.1.0     2017-04-21 [1] CRAN (R 3.6.0)
-##  munsell       0.5.0     2018-06-12 [1] CRAN (R 3.6.0)
-##  packrat       0.5.0     2018-11-14 [1] CRAN (R 3.6.0)
-##  pillar        1.4.2     2019-06-29 [1] CRAN (R 3.6.1)
-##  pkgbuild      1.0.5     2019-08-26 [1] CRAN (R 3.6.1)
-##  pkgconfig     2.0.2     2018-08-16 [1] CRAN (R 3.6.0)
-##  pkgload       1.0.2     2018-10-29 [1] CRAN (R 3.6.0)
-##  prettyunits   1.0.2     2015-07-13 [1] CRAN (R 3.6.0)
-##  processx      3.4.1     2019-07-18 [1] CRAN (R 3.6.1)
-##  ps            1.3.0     2018-12-21 [1] CRAN (R 3.6.0)
-##  purrr       * 0.3.2     2019-03-15 [1] CRAN (R 3.6.1)
-##  R6            2.4.0     2019-02-14 [1] CRAN (R 3.6.0)
-##  Rcpp          1.0.2     2019-07-25 [1] CRAN (R 3.6.1)
-##  RCurl         1.95-4.12 2019-03-04 [1] CRAN (R 3.6.0)
-##  remotes       2.1.0     2019-06-24 [1] CRAN (R 3.6.1)
-##  rlang         0.4.0     2019-06-25 [1] CRAN (R 3.6.1)
-##  rmarkdown     1.15      2019-08-21 [1] CRAN (R 3.6.1)
-##  rprojroot     1.3-2     2018-01-03 [1] CRAN (R 3.6.0)
-##  rstan       * 2.19.2    2019-07-09 [1] CRAN (R 3.6.1)
-##  rstudioapi    0.10      2019-03-19 [1] CRAN (R 3.6.0)
-##  scales        1.0.0     2018-08-09 [1] CRAN (R 3.6.0)
-##  sessioninfo   1.1.1     2018-11-05 [1] CRAN (R 3.6.0)
-##  StanHeaders * 2.18.1-10 2019-06-14 [1] CRAN (R 3.6.1)
-##  stringi       1.4.3     2019-03-12 [1] CRAN (R 3.6.0)
-##  stringr       1.4.0     2019-02-10 [1] CRAN (R 3.6.0)
-##  testthat      2.2.1     2019-07-25 [1] CRAN (R 3.6.1)
-##  tibble      * 2.1.3     2019-06-06 [1] CRAN (R 3.6.1)
-##  tidyr       * 1.0.0     2019-09-11 [1] CRAN (R 3.6.1)
-##  tidyselect  * 0.2.5     2018-10-11 [1] CRAN (R 3.6.1)
-##  usethis     * 1.5.1     2019-07-04 [1] CRAN (R 3.6.1)
-##  vctrs         0.2.0     2019-07-05 [1] CRAN (R 3.6.1)
-##  withr         2.1.2     2018-03-15 [1] CRAN (R 3.6.0)
-##  xfun          0.10      2019-10-01 [1] CRAN (R 3.6.1)
-##  XML           3.98-1.20 2019-06-06 [1] CRAN (R 3.6.1)
-##  yaml        * 2.2.0     2018-07-25 [1] CRAN (R 3.6.1)
-##  zeallot       0.1.0     2018-01-28 [1] CRAN (R 3.6.0)
+## ─ Packages ───────────────────────────────────────────────────────────────────
+##  package      * version  date       lib source        
+##  assertthat     0.2.1    2019-03-21 [1] CRAN (R 3.6.0)
+##  backports      1.1.9    2020-08-24 [1] CRAN (R 3.6.3)
+##  bitops         1.0-6    2013-08-17 [1] CRAN (R 3.6.0)
+##  callr          3.4.3    2020-03-28 [1] CRAN (R 3.6.3)
+##  cli            2.0.2    2020-02-28 [1] CRAN (R 3.6.3)
+##  codetools      0.2-16   2018-12-24 [4] CRAN (R 3.6.3)
+##  colorspace     1.4-1    2019-03-18 [1] CRAN (R 3.6.0)
+##  crayon         1.3.4    2017-09-16 [1] CRAN (R 3.6.0)
+##  curl         * 4.3      2019-12-02 [1] CRAN (R 3.6.2)
+##  desc           1.2.0    2018-05-01 [1] CRAN (R 3.6.0)
+##  devtools     * 2.3.1    2020-07-21 [1] CRAN (R 3.6.3)
+##  digest         0.6.25   2020-02-23 [1] CRAN (R 3.6.3)
+##  dplyr        * 1.0.2    2020-08-18 [1] CRAN (R 3.6.3)
+##  ellipsis       0.3.1    2020-05-15 [1] CRAN (R 3.6.3)
+##  evaluate       0.14     2019-05-28 [1] CRAN (R 3.6.1)
+##  fansi          0.4.1    2020-01-08 [1] CRAN (R 3.6.2)
+##  fs             1.5.0    2020-07-31 [1] CRAN (R 3.6.3)
+##  generics       0.0.2    2018-11-29 [1] CRAN (R 3.6.3)
+##  ggfan        * 0.1.3    2019-03-07 [1] CRAN (R 3.6.1)
+##  ggplot2      * 3.3.2    2020-06-19 [1] CRAN (R 3.6.3)
+##  git2r        * 0.27.1   2020-05-03 [1] CRAN (R 3.6.3)
+##  glue           1.4.2    2020-08-27 [1] CRAN (R 3.6.3)
+##  gridExtra      2.3      2017-09-09 [1] CRAN (R 3.6.0)
+##  gtable         0.3.0    2019-03-25 [1] CRAN (R 3.6.0)
+##  here         * 0.1      2017-05-28 [1] CRAN (R 3.6.1)
+##  HMDHFDplus   * 1.9.13   2020-02-20 [1] CRAN (R 3.6.3)
+##  htmltools      0.5.0    2020-06-16 [1] CRAN (R 3.6.3)
+##  httr           1.4.2    2020-07-20 [1] CRAN (R 3.6.3)
+##  inline         0.3.15   2018-05-18 [1] CRAN (R 3.6.0)
+##  jsonlite       1.7.0    2020-06-25 [1] CRAN (R 3.6.3)
+##  knitr          1.29     2020-06-23 [1] CRAN (R 3.6.3)
+##  lazyeval     * 0.2.2    2019-03-15 [1] CRAN (R 3.6.1)
+##  lifecycle      0.2.0    2020-03-06 [1] CRAN (R 3.6.3)
+##  loo            2.3.1    2020-07-14 [1] CRAN (R 3.6.3)
+##  magrittr     * 1.5      2014-11-22 [1] CRAN (R 3.6.1)
+##  matrixStats    0.56.0   2020-03-13 [1] CRAN (R 3.6.3)
+##  memoise        1.1.0    2017-04-21 [1] CRAN (R 3.6.0)
+##  munsell        0.5.0    2018-06-12 [1] CRAN (R 3.6.0)
+##  pillar         1.4.6    2020-07-10 [1] CRAN (R 3.6.3)
+##  pkgbuild       1.1.0    2020-07-13 [1] CRAN (R 3.6.3)
+##  pkgconfig      2.0.3    2019-09-22 [1] CRAN (R 3.6.2)
+##  pkgload        1.1.0    2020-05-29 [1] CRAN (R 3.6.3)
+##  prettyunits    1.1.1    2020-01-24 [1] CRAN (R 3.6.2)
+##  processx       3.4.3    2020-07-05 [1] CRAN (R 3.6.3)
+##  ps             1.3.4    2020-08-11 [1] CRAN (R 3.6.3)
+##  purrr        * 0.3.4    2020-04-17 [1] CRAN (R 3.6.3)
+##  R6             2.4.1    2019-11-12 [1] CRAN (R 3.6.2)
+##  Rcpp           1.0.5    2020-07-06 [1] CRAN (R 3.6.3)
+##  RcppParallel   5.0.1    2020-05-06 [1] CRAN (R 3.6.3)
+##  RCurl          1.98-1.2 2020-04-18 [1] CRAN (R 3.6.3)
+##  remotes        2.2.0    2020-07-21 [1] CRAN (R 3.6.3)
+##  rlang          0.4.7    2020-07-09 [1] CRAN (R 3.6.3)
+##  rmarkdown      2.3      2020-06-18 [1] CRAN (R 3.6.3)
+##  rprojroot      1.3-2    2018-01-03 [1] CRAN (R 3.6.0)
+##  rstan        * 2.21.2   2020-07-27 [1] CRAN (R 3.6.3)
+##  scales         1.1.1    2020-05-11 [1] CRAN (R 3.6.3)
+##  sessioninfo    1.1.1    2018-11-05 [1] CRAN (R 3.6.0)
+##  StanHeaders  * 2.21.0-6 2020-08-16 [1] CRAN (R 3.6.3)
+##  stringi        1.4.6    2020-02-17 [1] CRAN (R 3.6.3)
+##  stringr        1.4.0    2019-02-10 [1] CRAN (R 3.6.0)
+##  testthat       2.3.2    2020-03-02 [1] CRAN (R 3.6.3)
+##  tibble       * 3.0.3    2020-07-10 [1] CRAN (R 3.6.3)
+##  tidyr        * 1.1.2    2020-08-27 [1] CRAN (R 3.6.3)
+##  tidyselect   * 1.1.0    2020-05-11 [1] CRAN (R 3.6.3)
+##  usethis      * 1.6.1    2020-04-29 [1] CRAN (R 3.6.3)
+##  V8             3.2.0    2020-06-19 [1] CRAN (R 3.6.3)
+##  vctrs          0.3.4    2020-08-29 [1] CRAN (R 3.6.3)
+##  withr          2.2.0    2020-04-20 [1] CRAN (R 3.6.3)
+##  xfun           0.16     2020-07-24 [1] CRAN (R 3.6.3)
+##  XML            3.99-0.3 2020-01-20 [1] CRAN (R 3.6.2)
+##  yaml         * 2.2.1    2020-02-01 [1] CRAN (R 3.6.2)
 ## 
 ## [1] /home/jason/R/x86_64-pc-linux-gnu-library/3.6
 ## [2] /usr/local/lib/R/site-library
@@ -763,7 +842,7 @@ body {
 </code></pre>
 <hr />
 <h3 id="iridis">Iridis</h3>
-<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb11-1" data-line-number="1"><span class="kw">print</span>(<span class="kw">readRDS</span>(<span class="kw">file.path</span>(<span class="st">&quot;results&quot;</span>, <span class="st">&quot;hpc_sesh.Rds&quot;</span>)))</a></code></pre></div>
+<div class="sourceCode" id="cb27"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb27-1" data-line-number="1"><span class="kw">print</span>(<span class="kw">readRDS</span>(<span class="kw">file.path</span>(<span class="st">&quot;results&quot;</span>, <span class="st">&quot;hpc_sesh.Rds&quot;</span>)))</a></code></pre></div>
 <pre><code>## R version 3.5.1 (2018-07-02)
 ## Platform: x86_64-pc-linux-gnu (64-bit)
 ## Running under: Red Hat Enterprise Linux Server release 6.10 (Santiago)
@@ -791,18 +870,15 @@ body {
 ## [10] tidyr_0.8.3           dplyr_0.8.3           purrr_0.3.2          
 ## 
 ## loaded via a namespace (and not attached):
-##  [1] Rcpp_1.0.2         pillar_1.4.2       compiler_3.5.1    
-##  [4] prettyunits_1.0.2  tools_3.5.1        zeallot_0.1.0     
-##  [7] pkgbuild_1.0.5     gtable_0.3.0       pkgconfig_2.0.2   
-## [10] rlang_0.4.0        cli_1.1.0          parallel_3.5.1    
-## [13] loo_2.1.0          gridExtra_2.3      withr_2.1.2       
-## [16] vctrs_0.2.0        hms_0.5.1          stats4_3.5.1      
-## [19] grid_3.5.1         tidyselect_0.2.5   glue_1.3.1        
-## [22] inline_0.3.15      R6_2.4.0           processx_3.4.1    
-## [25] callr_3.3.1        magrittr_1.5       matrixStats_0.54.0
-## [28] backports_1.1.4    scales_1.0.0       ps_1.3.0          
-## [31] assertthat_0.2.1   colorspace_1.4-1   lazyeval_0.2.2    
-## [34] munsell_0.5.0      crayon_1.3.4
+##  [1] Rcpp_1.0.2         pillar_1.4.2       compiler_3.5.1     prettyunits_1.0.2 
+##  [5] tools_3.5.1        zeallot_0.1.0      pkgbuild_1.0.5     gtable_0.3.0      
+##  [9] pkgconfig_2.0.2    rlang_0.4.0        cli_1.1.0          parallel_3.5.1    
+## [13] loo_2.1.0          gridExtra_2.3      withr_2.1.2        vctrs_0.2.0       
+## [17] hms_0.5.1          stats4_3.5.1       grid_3.5.1         tidyselect_0.2.5  
+## [21] glue_1.3.1         inline_0.3.15      R6_2.4.0           processx_3.4.1    
+## [25] callr_3.3.1        magrittr_1.5       matrixStats_0.54.0 backports_1.1.4   
+## [29] scales_1.0.0       ps_1.3.0           assertthat_0.2.1   colorspace_1.4-1  
+## [33] lazyeval_0.2.2     munsell_0.5.0      crayon_1.3.4
 </code></pre>
 
 </body>
