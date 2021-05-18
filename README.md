@@ -10,6 +10,9 @@ Models”. The paper is available from this repo at:
 The appendix is similarly at:
 <https://github.com/jasonhilton/frontier_mort/raw/master/paper/appendix.pdf>
 
+**Link to Presentation:**
+<https://jasonhilton.github.io/frontier_mort/presentation/LSHTM_mortality.html>
+
 # Requirements
 
 Running the code requires a recent version of `R` (\>3.5 is probably
